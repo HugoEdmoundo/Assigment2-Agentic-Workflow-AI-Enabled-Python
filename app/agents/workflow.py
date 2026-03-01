@@ -16,14 +16,12 @@ logger = logging.getLogger(__name__)
 PDF_OUTPUT_PATH = "report_output.pdf"
 
 class AIWorkflow:
-    """
-    AI Research Workflow dengan 5 steps:
-    1. Fetch Data - Research topic dengan AI
-    2. Clean Data - Extract key points
-    3. Transform Data - Summarize & analyze
-    4. Store Data - Simpan hasil research
-    5. Notify User - Generate recommendations
-    """
+    # workflow dengan 5 step
+    # 1. fetch data
+    # 2. clean data
+    # 3. transform data
+    # 4. store data
+    # 5. notify user
     
     def __init__(self, task_id: str, user_id: str, topic: str):
         self.task_id = task_id
@@ -35,7 +33,7 @@ class AIWorkflow:
         self._add_log("INFO", "Workflow Started", f"AI Research for topic: {topic}")
     
     def _add_log(self, level: str, step: str, message: str):
-        """Add log and update PDF"""
+        # tambahin log ke list
         log_entry = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "level": level,
@@ -44,10 +42,10 @@ class AIWorkflow:
         }
         self.logs.append(log_entry)
         logger.info(f"[{level}] {step}: {message}")
-        self._update_pdf()
+        self._update_pdf()  # update pdf setiap ada log baru
     
     def _update_pdf(self):
-        """Update PDF dengan logs terbaru"""
+        # bikin pdf dari logs
         try:
             buffer = BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
@@ -55,10 +53,12 @@ class AIWorkflow:
             story = []
             styles = getSampleStyleSheet()
             
+            # title
             title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=20, spaceAfter=20, alignment=TA_LEFT)
             story.append(Paragraph("AI Research Report", title_style))
             story.append(Spacer(1, 0.2*inch))
             
+            # info dasar
             body_style = styles['BodyText']
             story.append(Paragraph(f"<b>Task ID:</b> {self.task_id}", body_style))
             story.append(Paragraph(f"<b>User ID:</b> {self.user_id}", body_style))
@@ -66,6 +66,7 @@ class AIWorkflow:
             story.append(Paragraph(f"<b>Generated:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", body_style))
             story.append(Spacer(1, 0.3*inch))
             
+            # logs
             story.append(Paragraph("<b>Research Logs:</b>", styles['Heading2']))
             story.append(Spacer(1, 0.1*inch))
             
@@ -76,6 +77,7 @@ class AIWorkflow:
             
             doc.build(story)
             
+            # save ke file
             with open(PDF_OUTPUT_PATH, 'wb') as f:
                 f.write(buffer.getvalue())
             
@@ -84,12 +86,12 @@ class AIWorkflow:
             logger.error(f"Error updating PDF: {str(e)}")
     
     async def step1_fetch_data(self) -> Dict[str, Any]:
-        """Step 1: Fetch Data - Research topic dengan AI"""
+        # step 1: ambil data pake AI
         self._add_log("INFO", "Step 1: Fetch Data", f"Starting AI research for: {self.topic}")
         await asyncio.sleep(1)
         
         try:
-            # Research dengan AI
+            # panggil openrouter buat research
             research_result = research_topic(self.topic)
             
             self.context["research_data"] = research_result
@@ -108,7 +110,7 @@ class AIWorkflow:
             raise
     
     async def step2_clean_data(self) -> Dict[str, Any]:
-        """Step 2: Clean Data - Extract key points"""
+        # step 2: bersihin data, extract key points
         self._add_log("INFO", "Step 2: Clean Data", "Extracting key points from research...")
         await asyncio.sleep(1)
         
@@ -116,7 +118,7 @@ class AIWorkflow:
             research_data = self.context.get("research_data", {})
             research_text = research_data.get("research_result", "")
             
-            # Extract key points
+            # extract poin penting
             key_points = extract_key_points(research_text)
             
             self.context["key_points"] = key_points
@@ -135,7 +137,7 @@ class AIWorkflow:
             raise
     
     async def step3_transform_data(self) -> Dict[str, Any]:
-        """Step 3: Transform Data - Summarize & analyze"""
+        # step 3: transform data jadi summary
         self._add_log("INFO", "Step 3: Transform Data", "Summarizing research data...")
         await asyncio.sleep(1)
         
@@ -143,7 +145,7 @@ class AIWorkflow:
             research_data = self.context.get("research_data", {})
             research_text = research_data.get("research_result", "")
             
-            # Summarize
+            # bikin summary
             summary = summarize_text(research_text, max_words=150)
             
             self.context["summary"] = summary
@@ -162,6 +164,44 @@ class AIWorkflow:
             raise
     
     async def step4_store_data(self) -> Dict[str, Any]:
+        # step 4: simpen hasil ke file json
+        self._add_log("INFO", "Step 4: Store Data", "Storing research results...")
+        await asyncio.sleep(1)
+        
+        try:
+            import json
+            
+            # bikin data yang mau disimpen
+            output_data = {
+                "task_id": self.task_id,
+                "user_id": self.user_id,
+                "topic": self.topic,
+                "timestamp": datetime.now().isoformat(),
+                "research": self.context.get("research_data", {}),
+                "key_points": self.context.get("key_points", []),
+                "summary": self.context.get("summary", "")
+            }
+            
+            output_file = f"research_output_{self.task_id[:8]}.json"
+            
+            # save ke file
+            with open(output_file, 'w') as f:
+                json.dump(output_data, f, indent=2)
+            
+            self.context["output_file"] = output_file
+            
+            self._add_log("SUCCESS", "Step 4: Store Data", 
+                         f"Research saved to {output_file}")
+            
+            return {
+                "step": 4,
+                "name": "Store Data",
+                "status": "success",
+                "output_file": output_file
+            }
+        except Exception as e:
+            self._add_log("ERROR", "Step 4: Store Data", f"Failed: {str(e)}")
+            raise
         """Step 4: Store Data - Simpan hasil research"""
         self._add_log("INFO", "Step 4: Store Data", "Storing research results...")
         await asyncio.sleep(1)
@@ -200,7 +240,7 @@ class AIWorkflow:
             raise
     
     async def step5_notify_user(self) -> Dict[str, Any]:
-        """Step 5: Notify User - Generate recommendations"""
+        # step 5: kasih notif ke user + rekomendasi
         self._add_log("INFO", "Step 5: Notify User", "Generating recommendations...")
         await asyncio.sleep(1)
         
@@ -208,7 +248,7 @@ class AIWorkflow:
             research_data = self.context.get("research_data", {})
             research_text = research_data.get("research_result", "")
             
-            # Generate recommendations
+            # bikin rekomendasi
             recommendations = generate_recommendations(self.topic, research_text)
             
             self.context["recommendations"] = recommendations

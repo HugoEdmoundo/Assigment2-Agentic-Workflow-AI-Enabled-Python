@@ -9,9 +9,13 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # OpenRouter client (compatible dengan OpenAI SDK)
+api_key = os.getenv("OPENROUTER_API_KEY")
+if not api_key:
+    raise ValueError("OPENROUTER_API_KEY not found in environment variables!")
+
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENROUTER_API_KEY", "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")
+    api_key=api_key
 )
 
 def research_topic(topic: str) -> dict:

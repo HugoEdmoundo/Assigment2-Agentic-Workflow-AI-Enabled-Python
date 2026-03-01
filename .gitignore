@@ -43,6 +43,7 @@ ENV/
 # Output files
 report_output.pdf
 workflow_output_*.json
+research_output_*.json
 
 # Logs
 *.log

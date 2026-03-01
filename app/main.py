@@ -7,18 +7,14 @@ from celery.result import AsyncResult
 import logging
 import os
 
+# setup logging biar bisa debug
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# bikin fastapi app
 app = FastAPI(
-    title="🤖 AI Agentic Workflow API",
-    description="AI Research Workflow dengan 5 steps:\n"
-                "1. Fetch Data - AI research dengan OpenRouter\n"
-                "2. Clean Data - Extract key points\n"
-                "3. Transform Data - Summarize hasil\n"
-                "4. Store Data - Simpan research\n"
-                "5. Notify User - Generate recommendations\n\n"
-                "✨ PDF otomatis di-update setiap step!",
+    title="AI Agentic Workflow API",
+    description="AI Research Workflow dengan 5 steps: Fetch Data, Clean Data, Transform Data, Store Data, Notify User",
     version="1.0.0"
 )
 
@@ -26,27 +22,12 @@ app = FastAPI(
 async def scalar_html():
     return get_scalar_api_reference(openapi_url=app.openapi_url, title=app.title)
 
-@app.post("/workflow", response_model=WorkflowResponse, summary="🤖 Start AI Research")
+# endpoint buat start workflow
+@app.post("/workflow", response_model=WorkflowResponse)
 async def start_workflow(request: WorkflowRequest):
-    """
-    Start AI research workflow dengan OpenRouter!
-    
-    Example:
-    ```json
-    {
-      "user_id": "user123",
-      "topic": "Artificial Intelligence in Healthcare"
-    }
-    ```
-    
-    AI akan:
-    - Research topic dengan LLM
-    - Extract key points
-    - Generate summary
-    - Create recommendations
-    - Generate PDF report
-    """
+    """Start AI research workflow"""
     try:
+        # jalanin task pake celery
         task = run_workflow.delay(user_id=request.user_id, topic=request.topic)
         
         logger.info(f"Workflow started: {task.id} for topic: {request.topic}")
@@ -60,15 +41,19 @@ async def start_workflow(request: WorkflowRequest):
         logger.error(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/status/{task_id}", response_model=WorkflowStatus, summary="Get Status")
+# cek status task
+@app.get("/status/{task_id}", response_model=WorkflowStatus)
 async def get_status(task_id: str):
-    """Cek status AI research workflow"""
+    """Cek status workflow"""
     try:
         task_result = AsyncResult(task_id, app=run_workflow.app)
         detailed_status = get_task_status.delay(task_id).get(timeout=5)
         
+        # kalo masih pending
         if task_result.state == 'PENDING':
             return WorkflowStatus(task_id=task_id, status='pending', current_step=0, total_steps=5)
+        
+        # kalo lagi jalan
         elif task_result.state in ['STARTED', 'PROGRESS']:
             return WorkflowStatus(
                 task_id=task_id,
@@ -79,6 +64,8 @@ async def get_status(task_id: str):
                 total_steps=5,
                 pdf_path=PDF_OUTPUT_PATH
             )
+        
+        # kalo udah selesai
         elif task_result.state == 'SUCCESS':
             return WorkflowStatus(
                 task_id=task_id,
@@ -90,6 +77,8 @@ async def get_status(task_id: str):
                 result=task_result.result,
                 pdf_path=PDF_OUTPUT_PATH
             )
+        
+        # kalo error
         elif task_result.state == 'FAILURE':
             return WorkflowStatus(
                 task_id=task_id,
@@ -104,13 +93,10 @@ async def get_status(task_id: str):
         logger.error(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/pdf", summary="📄 Download PDF Report")
+# download pdf report
+@app.get("/pdf")
 async def download_pdf():
-    """
-    Download PDF report yang selalu di-update setiap step!
-    
-    Bisa download kapan aja untuk lihat progress real-time.
-    """
+    """Download PDF report"""
     try:
         if not os.path.exists(PDF_OUTPUT_PATH):
             raise HTTPException(status_code=404, detail="PDF not found. Run workflow first!")
@@ -122,7 +108,7 @@ async def download_pdf():
         logger.error(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# health check endpoint
 @app.get("/health")
 async def health():
-    """Health check"""
     return {"status": "healthy", "service": "AI Agentic Workflow API"}
