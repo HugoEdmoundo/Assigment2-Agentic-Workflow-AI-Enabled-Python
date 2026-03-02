@@ -49,7 +49,7 @@ http://127.0.0.1:8000
 {
   "user_id": "user123",
   "topic": "Artificial Intelligence in Healthcare"
-}
+} 
 ```
 - Klik "Send"
 - Copy `task_id`
